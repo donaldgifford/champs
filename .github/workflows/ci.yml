@@ -119,11 +119,18 @@ jobs:
           version: "~> v2"
           args: release --snapshot --skip=publish --skip=sign --clean
 
+      - name: Locate archive SBOM
+        id: sbom
+        # The archive name embeds the snapshot version, so resolve it at
+        # runtime rather than hardcoding a path.
+        run: |
+          echo "path=$(ls dist/champs_*_linux_amd64.tar.gz.spdx.json | head -1)" >> "$GITHUB_OUTPUT"
+
       - name: Scan archive SBOM
         id: scan-sbom
         uses: anchore/scan-action@v7
         with:
-          sbom: dist/hclkit_linux_amd64.tar.gz.spdx.json
+          sbom: ${{ steps.sbom.outputs.path }}
           severity-cutoff: high
           fail-build: false
           output-format: sarif
