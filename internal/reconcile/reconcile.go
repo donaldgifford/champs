@@ -101,8 +101,46 @@ func Run(ctx context.Context, opts *Options) (*Result, error) {
 		Prune:  opts.Prune,
 		Orgs:   make([]OrgResult, 0, len(orgs)),
 	}
+	seen := make(stringset.Set, opts.Roster.Len())
+	var residueClient *gh.OrgClient
 	for _, o := range outcomes {
 		res.Orgs = append(res.Orgs, o.res)
+		for u := range o.seen {
+			seen.Add(u)
+		}
+		if residueClient == nil && o.client != nil && o.res.Err == nil {
+			residueClient = o.client
+		}
+	}
+
+	// Cross-org residue check (step 8): a roster login seen in zero orgs
+	// is either an outsider everywhere or not a GitHub user at all — one
+	// lookup each, through any successful org's client, decides which. It
+	// runs in dry-run too (it is a read). When every org failed or lacked
+	// an installation there is no client and the skips stay
+	// not_org_member.
+	if residueClient == nil {
+		return res, nil
+	}
+	for _, login := range opts.Roster.Diff(seen).Sorted() {
+		ok, err := residueClient.UserExists(ctx, login)
+		switch {
+		case err != nil:
+			res.ResidueErrs = append(res.ResidueErrs, err)
+		case !ok:
+			res.UnknownUsers = append(res.UnknownUsers, login)
+			removeUserSkips(res.Orgs, login)
+		}
 	}
 	return res, nil
+}
+
+// removeUserSkips drops login's per-org skip records — they are being
+// reclassified as one run-level unknown_user.
+func removeUserSkips(orgs []OrgResult, login string) {
+	for i := range orgs {
+		orgs[i].Skips = slices.DeleteFunc(orgs[i].Skips, func(s Skip) bool {
+			return s.User == login
+		})
+	}
 }

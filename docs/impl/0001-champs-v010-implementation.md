@@ -198,8 +198,10 @@ the concurrency model.
 - [x] Skip classification: `not_org_member` per user, `no_installation` per org.
       (`no_installation` is a skip with a nil org error — exit 0 unless
       something else fails.)
-- [ ] Cross-org residue check: one `UserExists` call per roster login seen in
-      zero orgs; reclassify those skips as `unknown_user`.
+- [x] Cross-org residue check: one `UserExists` call per roster login seen in
+      zero orgs; reclassify those skips as `unknown_user`. (Runs in dry-run too
+      — it is a read; rides any successful org's client, and when no org
+      produced one the skips stay `not_org_member`.)
 - [x] Empty-roster prune guard: roster parses to zero logins with `--prune` set
       → fail before any writes. (`ErrEmptyRosterPrune`; test asserts zero token
       mints.)

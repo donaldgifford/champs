@@ -130,3 +130,75 @@ func TestRunOrgErrorDoesNotAbortOthers(t *testing.T) {
 		t.Error("HasErrors() = false, want true with a failed org")
 	}
 }
+
+func TestRunReclassifiesUnknownUsers(t *testing.T) {
+	srv := ghtest.New(t)
+	seedFleet(srv)
+	srv.AddUser("lonely") // real user, member of no managed org
+
+	res, err := reconcile.Run(context.Background(), &reconcile.Options{
+		Source: runApp(t, srv),
+		Team:   runTeam,
+		Orgs:   []string{"acme", "beta", "gamma"},
+		Roster: stringset.New("alice", "lonely", "type0-ghost"),
+		DryRun: true, // the residue check is a read; it runs in plan too
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v, want nil", err)
+	}
+
+	if want := []string{"type0-ghost"}; !slices.Equal(res.UnknownUsers, want) {
+		t.Errorf("UnknownUsers = %v, want %v", res.UnknownUsers, want)
+	}
+	if len(res.ResidueErrs) != 0 {
+		t.Errorf("ResidueErrs = %v, want none", res.ResidueErrs)
+	}
+	for _, o := range res.Orgs {
+		for _, s := range o.Skips {
+			if s.User == "type0-ghost" {
+				t.Errorf("%s still holds a %s skip for type0-ghost, want it reclassified", o.Org, s.Reason)
+			}
+		}
+		var lonelySkipped bool
+		for _, s := range o.Skips {
+			if s.User == "lonely" && s.Reason == reconcile.SkipNotOrgMember {
+				lonelySkipped = true
+			}
+		}
+		if !lonelySkipped {
+			t.Errorf("%s Skips = %v, want lonely kept as not_org_member", o.Org, o.Skips)
+		}
+	}
+
+	// One lookup per residue login; logins seen in any org are never
+	// looked up.
+	for path, want := range map[string]int{
+		"/users/type0-ghost": 1,
+		"/users/lonely":      1,
+		"/users/alice":       0,
+	} {
+		if got := srv.Hits(path); got != want {
+			t.Errorf("Hits(%s) = %d, want %d", path, got, want)
+		}
+	}
+}
+
+func TestRunResidueSkippedWithoutAnyClient(t *testing.T) {
+	srv := ghtest.New(t) // no orgs registered: every org is no_installation
+
+	res, err := reconcile.Run(context.Background(), &reconcile.Options{
+		Source: runApp(t, srv),
+		Team:   runTeam,
+		Orgs:   []string{"ghost"},
+		Roster: stringset.New("type0-ghost"),
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v, want nil", err)
+	}
+	if len(res.UnknownUsers) != 0 {
+		t.Errorf("UnknownUsers = %v, want none without a residue client", res.UnknownUsers)
+	}
+	if got := srv.Hits("/users/type0-ghost"); got != 0 {
+		t.Errorf("Hits(/users/type0-ghost) = %d, want 0", got)
+	}
+}
