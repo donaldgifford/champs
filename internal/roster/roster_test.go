@@ -82,7 +82,8 @@ func TestParseErrors(t *testing.T) {
 		{"too long", strings.Repeat("a", 40) + "\n", roster.ErrInvalidLogin, nil},
 		{
 			"aggregates all bad lines", "-a\nok\nb--c\n",
-			roster.ErrInvalidLogin, []string{"line 1", "line 3"},
+			roster.ErrInvalidLogin,
+			[]string{"line 1", "line 3"},
 		},
 	}
 
