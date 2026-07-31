@@ -65,7 +65,7 @@ Image is distroless + nonroot; entrypoint is `champs`.
 
 ## Layout
 
-```
+```text
 cmd/champs/    main package
 internal/               library code (private to this module)
 Dockerfile              multi-stage distroless build
