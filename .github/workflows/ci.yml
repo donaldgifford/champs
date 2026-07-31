@@ -64,7 +64,7 @@ jobs:
         with:
           files: coverage.out
           token: ${{ secrets.CODECOV_TOKEN }}
-          slug: donaldgifford/hclkit
+          slug: donaldgifford/champs
         continue-on-error: true
 
   security:
