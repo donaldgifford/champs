@@ -11,14 +11,14 @@ import (
 	"github.com/donaldgifford/champs/internal/stringset"
 )
 
-// roleMember is the only team role champs assigns.
-const roleMember = "member"
-
-// listPageSize is the page size for REST and GraphQL list calls.
-const listPageSize = 100
-
-// activeState is the membership state proving no invitation was sent.
-const activeState = "active"
+const (
+	// roleMember is the only team role champs assigns.
+	roleMember = "member"
+	// listPageSize is the page size for REST and GraphQL list calls.
+	listPageSize = 100
+	// activeState is the membership state proving no invitation was sent.
+	activeState = "active"
+)
 
 // TeamSettings are the creation-time settings for the security-champions
 // team. The caller maps config onto this; gh does not import
@@ -77,7 +77,7 @@ func (c *OrgClient) ListOrgMembers(ctx context.Context) (stringset.Set, error) {
 		if !page.PageInfo.HasNextPage {
 			break
 		}
-		vars["cursor"] = githubv4.NewString(page.PageInfo.EndCursor)
+		vars["cursor"] = new(page.PageInfo.EndCursor)
 	}
 	return members, nil
 }
@@ -98,8 +98,8 @@ func (c *OrgClient) EnsureTeam(ctx context.Context, team TeamSettings) error {
 	// two are identical (DESIGN-0001 Configuration).
 	newTeam := github.NewTeam{
 		Name:        team.Slug,
-		Description: github.Ptr(team.Description),
-		Privacy:     github.Ptr(team.Privacy),
+		Description: new(team.Description),
+		Privacy:     new(team.Privacy),
 	}
 	if _, _, err := c.rest.Teams.CreateTeam(ctx, c.org, newTeam); err != nil {
 		return fmt.Errorf("creating team %s in %s: %w", team.Slug, c.org, err)
