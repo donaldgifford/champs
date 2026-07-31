@@ -32,5 +32,5 @@ docz create design "Your Design Title"
 
 | ID | Title | Status | Date | Author | Link |
 |----|-------|--------|------|--------|------|
-| DESIGN-0001 | champs: security champions team management CLI | Draft | 2026-07-29 | Donald Gifford | [0001-champs-security-champions-team-management-cli.md](0001-champs-security-champions-team-management-cli.md) |
+| DESIGN-0001 | champs: security champions team management CLI | Approved | 2026-07-29 | Donald Gifford | [0001-champs-security-champions-team-management-cli.md](0001-champs-security-champions-team-management-cli.md) |
 <!-- END DOCZ AUTO-GENERATED -->
