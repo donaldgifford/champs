@@ -105,9 +105,11 @@ touches the network.
 - [x] Private key resolution: `CHAMPS_GITHUB_PRIVATE_KEY` env var (PEM contents)
       wins over `private_key_path`; both sources PEM-sanity-checked
       (`ErrInvalidPEM`) so a mispasted secret fails at load with a named source.
-- [ ] `internal/roster`: single-column CSV parse — optional header, lowercase,
-      trim whitespace, drop empty lines, dedupe after lowercasing; returns a
-      set.
+- [x] `internal/roster`: single-column CSV parse — optional header
+      (`login`/`username`), lowercase, trim whitespace, drop empty lines, dedupe
+      after lowercasing, GitHub login-shape validation with line-numbered
+      errors; returns an `internal/stringset.Set` (shared with Phase 3's
+      reconcile math: Intersect/Diff/Sorted).
 - [ ] Table-driven unit tests for config and roster (pure functions, no mocks).
 
 #### Success Criteria
