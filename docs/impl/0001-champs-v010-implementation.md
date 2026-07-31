@@ -288,9 +288,16 @@ plan.
 #### Tasks
 
 - [ ] Repo CI (`.forgejo/workflows/ci.yml` + `.github` mirror) green on the full
-      codebase — `just test` + `just lint`.
-- [ ] `goreleaser check` passes; ldflags version injection verified in a
-      snapshot build.
+      codebase — `just test` + `just lint`. (Local verification done with the
+      workflow's exact commands: golangci-lint 0 issues, `just test-coverage`
+      pass, `just coverage-gate` pass — the recipe CI referenced but that never
+      existed was added, and the codecov slug fixed from the hclkit scaffold
+      copy-paste. Note: this repo has `.github/workflows/` only, no
+      `.forgejo/workflows/`. Remote runner green requires a push.)
+- [x] `goreleaser check` passes; ldflags version injection verified in a
+      snapshot build. (`goreleaser build --snapshot --single-target` →
+      `champs version` prints the snapshot version, real commit SHA, and build
+      date.)
 - [ ] Manual integration: `champs plan` (`--dry-run`) against the sandbox org;
       review output, confirm zero writes.
 - [ ] Resolve OQ-2 and land `champs.hcl`, the roster CSV, and the three
