@@ -7,7 +7,11 @@
 package ghtest
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -50,6 +54,7 @@ type Server struct {
 
 	pageSize  int
 	limitOnce map[string]bool
+	failPuts  map[string]bool
 	hits      map[string]int
 
 	membershipPuts []string
@@ -73,6 +78,7 @@ func New(t *testing.T) *Server {
 		inviteOnPend:  true,
 		pageSize:      2,
 		limitOnce:     make(map[string]bool),
+		failPuts:      make(map[string]bool),
 		hits:          make(map[string]int),
 	}
 
@@ -80,6 +86,34 @@ func New(t *testing.T) *Server {
 	t.Cleanup(srv.Close)
 	s.URL = srv.URL
 	return s
+}
+
+var (
+	keyOnce sync.Once
+	keyPEM  []byte
+	errKey  error
+)
+
+// AppKey returns a PKCS#1 RSA private key PEM for gh.NewApp in tests.
+// Generated once per process — keygen is the slow part and the key's
+// identity is irrelevant.
+func AppKey(t *testing.T) []byte {
+	t.Helper()
+	keyOnce.Do(func() {
+		key, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			errKey = err
+			return
+		}
+		keyPEM = pem.EncodeToMemory(&pem.Block{
+			Type:  "RSA PRIVATE KEY",
+			Bytes: x509.MarshalPKCS1PrivateKey(key),
+		})
+	})
+	if errKey != nil {
+		t.Fatalf("generating test app key: %v", errKey)
+	}
+	return keyPEM
 }
 
 // AddOrg registers an org with an app installation and its member logins.
@@ -120,6 +154,15 @@ func (s *Server) DisableInviteCreation() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.inviteOnPend = false
+}
+
+// FailMembershipPut makes every membership PUT for user fail with a 500,
+// simulating a server-side write failure. The attempt is still recorded
+// by MembershipPuts.
+func (s *Server) FailMembershipPut(user string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.failPuts[strings.ToLower(user)] = true
 }
 
 // SecondaryLimitOnce makes the next request to path fail with a GitHub
@@ -339,6 +382,11 @@ func (s *Server) putMembership(w http.ResponseWriter, r *http.Request) {
 	defer s.mu.Unlock()
 	s.membershipPuts = append(s.membershipPuts, org+"/"+slug+"/"+user)
 
+	if s.failPuts[strings.ToLower(user)] {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "boom"})
+		return
+	}
+
 	// GitHub semantics: an org member becomes an active team member; a
 	// non-member is sent an org invitation and the membership is pending.
 	for _, m := range s.orgMembers[org] {
@@ -423,10 +471,7 @@ func (s *Server) cancelInvite(w http.ResponseWriter, r *http.Request) {
 // paginate slices items for the request's page and emits a Link rel="next"
 // header when more pages remain, mirroring GitHub's REST pagination.
 func paginate[T any](w http.ResponseWriter, r *http.Request, baseURL string, pageSize int, items []T) []T {
-	page := atoi(r.URL.Query().Get("page"))
-	if page < 1 {
-		page = 1
-	}
+	page := max(atoi(r.URL.Query().Get("page")), 1)
 	start := (page - 1) * pageSize
 	if start >= len(items) {
 		return nil

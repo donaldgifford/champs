@@ -36,8 +36,10 @@ func (e *GuardBreachError) Error() string {
 
 func (e *GuardBreachError) Unwrap() error { return e.CancelErr }
 
-// is404 reports whether err is a GitHub API 404 response.
-func is404(err error) bool {
+// IsNotFound reports whether err is a GitHub API 404 response. The
+// reconcile engine uses it to treat a missing team as an empty member set
+// during dry-run, where the team-creating EnsureTeam must not run.
+func IsNotFound(err error) bool {
 	var ger *github.ErrorResponse
 	return errors.As(err, &ger) && ger.Response != nil &&
 		ger.Response.StatusCode == http.StatusNotFound

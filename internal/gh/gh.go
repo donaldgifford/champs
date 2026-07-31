@@ -83,7 +83,7 @@ func NewApp(appID int64, privateKeyPEM []byte, opts ...Option) (*App, error) {
 func (a *App) OrgClient(ctx context.Context, org string) (*OrgClient, error) {
 	inst, _, err := a.rest.Apps.GetOrganizationInstallation(ctx, org)
 	if err != nil {
-		if is404(err) {
+		if IsNotFound(err) {
 			err = ErrNoInstallation
 		}
 		return nil, fmt.Errorf("resolving installation for %s: %w", org, err)

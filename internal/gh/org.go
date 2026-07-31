@@ -90,7 +90,7 @@ func (c *OrgClient) EnsureTeam(ctx context.Context, team TeamSettings) error {
 	if err == nil {
 		return nil
 	}
-	if !is404(err) {
+	if !IsNotFound(err) {
 		return fmt.Errorf("getting team %s in %s: %w", team.Slug, c.org, err)
 	}
 
@@ -167,7 +167,7 @@ func (c *OrgClient) UserExists(ctx context.Context, login string) (bool, error) 
 	switch {
 	case err == nil:
 		return true, nil
-	case is404(err):
+	case IsNotFound(err):
 		return false, nil
 	default:
 		return false, fmt.Errorf("looking up user %s: %w", login, err)

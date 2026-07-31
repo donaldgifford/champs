@@ -190,10 +190,14 @@ the concurrency model.
       `adds = desired −     team_members`, `removes = team_members − desired` —
       with table-driven tests. (`computeDiff` + `Result`/`OrgResult`/`Skip`
       types; skips sorted, outputs deterministic.)
-- [ ] Per-org reconcile unit (steps 1–7) returning a result struct
+- [x] Per-org reconcile unit (steps 1–7) returning a result struct
       `{org, adds, removes, skips, err}`; dry-run computes everything and writes
-      nothing.
-- [ ] Skip classification: `not_org_member` per user, `no_installation` per org.
+      nothing. (Dry-run routes around the team-creating `EnsureTeam` via a new
+      exported `gh.IsNotFound`; a write error stops that org with partial
+      progress preserved — the idempotent rerun picks up the remainder.)
+- [x] Skip classification: `not_org_member` per user, `no_installation` per org.
+      (`no_installation` is a skip with a nil org error — exit 0 unless
+      something else fails.)
 - [ ] Cross-org residue check: one `UserExists` call per roster login seen in
       zero orgs; reclassify those skips as `unknown_user`.
 - [ ] Empty-roster prune guard: roster parses to zero logins with `--prune` set

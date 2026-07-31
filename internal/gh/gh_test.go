@@ -2,49 +2,17 @@ package gh_test
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"encoding/pem"
 	"errors"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/donaldgifford/champs/internal/gh"
 	"github.com/donaldgifford/champs/internal/ghtest"
 )
 
-var (
-	keyOnce sync.Once
-	keyPEM  []byte
-	errKey  error
-)
-
-// testKey returns one RSA private key PEM shared by the whole package —
-// generation is the slow part, and the key's identity is irrelevant.
-func testKey(t *testing.T) []byte {
-	t.Helper()
-	keyOnce.Do(func() {
-		key, err := rsa.GenerateKey(rand.Reader, 2048)
-		if err != nil {
-			errKey = err
-			return
-		}
-		keyPEM = pem.EncodeToMemory(&pem.Block{
-			Type:  "RSA PRIVATE KEY",
-			Bytes: x509.MarshalPKCS1PrivateKey(key),
-		})
-	})
-	if errKey != nil {
-		t.Fatalf("generating test key: %v", errKey)
-	}
-	return keyPEM
-}
-
 func newApp(t *testing.T, srv *ghtest.Server) *gh.App {
 	t.Helper()
-	app, err := gh.NewApp(1, testKey(t), gh.WithBaseURL(srv.URL))
+	app, err := gh.NewApp(1, ghtest.AppKey(t), gh.WithBaseURL(srv.URL))
 	if err != nil {
 		t.Fatalf("NewApp() error = %v, want nil", err)
 	}

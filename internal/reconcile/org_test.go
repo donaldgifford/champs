@@ -1,12 +1,30 @@
 package reconcile
 
 import (
+	"context"
 	"errors"
 	"slices"
 	"testing"
 
+	"github.com/donaldgifford/champs/internal/gh"
+	"github.com/donaldgifford/champs/internal/ghtest"
 	"github.com/donaldgifford/champs/internal/stringset"
 )
+
+var testTeam = gh.TeamSettings{
+	Slug:        "security_champions",
+	Description: "Security champions",
+	Privacy:     "closed",
+}
+
+func testApp(t *testing.T, srv *ghtest.Server) *gh.App {
+	t.Helper()
+	app, err := gh.NewApp(1, ghtest.AppKey(t), gh.WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatalf("NewApp() error = %v, want nil", err)
+	}
+	return app
+}
 
 func TestComputeDiff(t *testing.T) {
 	tests := []struct {
@@ -133,5 +151,145 @@ func TestResultTotalsAndHasErrors(t *testing.T) {
 	}
 	if !failed.HasErrors() {
 		t.Error("HasErrors() = false, want true")
+	}
+}
+
+func TestReconcileOrgDryRunWritesNothing(t *testing.T) {
+	srv := ghtest.New(t)
+	srv.AddOrg("acme", 7, "alice", "bob", "carol")
+	opts := Options{
+		Source: testApp(t, srv),
+		Team:   testTeam,
+		Roster: stringset.New("alice", "bob", "outsider"),
+		DryRun: true,
+	}
+
+	out := reconcileOrg(context.Background(), &opts, "acme")
+
+	if out.res.Err != nil {
+		t.Fatalf("reconcileOrg() err = %v, want nil", out.res.Err)
+	}
+	if want := []string{"alice", "bob"}; !slices.Equal(out.res.Added, want) {
+		t.Errorf("Added = %v, want %v", out.res.Added, want)
+	}
+	wantSkips := []Skip{{User: "outsider", Org: "acme", Reason: SkipNotOrgMember}}
+	if !slices.Equal(out.res.Skips, wantSkips) {
+		t.Errorf("Skips = %v, want %v", out.res.Skips, wantSkips)
+	}
+	if want := []string{"alice", "bob"}; !slices.Equal(out.seen.Sorted(), want) {
+		t.Errorf("seen = %v, want %v", out.seen.Sorted(), want)
+	}
+	if puts := srv.MembershipPuts(); len(puts) != 0 {
+		t.Errorf("MembershipPuts() = %v, want none in dry-run", puts)
+	}
+	if _, ok := srv.Team("acme", testTeam.Slug); ok {
+		t.Error("dry-run created the team, want no writes")
+	}
+}
+
+func TestReconcileOrgApplyCreatesTeamAndAdds(t *testing.T) {
+	srv := ghtest.New(t)
+	srv.AddOrg("acme", 7, "alice", "bob", "carol")
+	opts := Options{
+		Source: testApp(t, srv),
+		Team:   testTeam,
+		Roster: stringset.New("alice", "bob"),
+	}
+
+	out := reconcileOrg(context.Background(), &opts, "acme")
+
+	if out.res.Err != nil {
+		t.Fatalf("reconcileOrg() err = %v, want nil", out.res.Err)
+	}
+	if want := []string{"alice", "bob"}; !slices.Equal(out.res.Added, want) {
+		t.Errorf("Added = %v, want %v", out.res.Added, want)
+	}
+	team, ok := srv.Team("acme", testTeam.Slug)
+	if !ok {
+		t.Fatal("apply did not create the team")
+	}
+	if team.Privacy != testTeam.Privacy {
+		t.Errorf("created team = %+v, want settings %+v", team, testTeam)
+	}
+	got := srv.TeamMembers("acme", testTeam.Slug)
+	slices.Sort(got)
+	if want := []string{"alice", "bob"}; !slices.Equal(got, want) {
+		t.Errorf("team members = %v, want %v", got, want)
+	}
+}
+
+func TestReconcileOrgApplyPrunesExtras(t *testing.T) {
+	srv := ghtest.New(t)
+	srv.AddOrg("acme", 7, "alice", "bob")
+	srv.AddTeam("acme", ghtest.Team{Slug: testTeam.Slug}, "alice", "departed")
+	opts := Options{
+		Source: testApp(t, srv),
+		Team:   testTeam,
+		Roster: stringset.New("alice", "bob"),
+		Prune:  true,
+	}
+
+	out := reconcileOrg(context.Background(), &opts, "acme")
+
+	if out.res.Err != nil {
+		t.Fatalf("reconcileOrg() err = %v, want nil", out.res.Err)
+	}
+	if want := []string{"bob"}; !slices.Equal(out.res.Added, want) {
+		t.Errorf("Added = %v, want %v", out.res.Added, want)
+	}
+	if want := []string{"departed"}; !slices.Equal(out.res.Removed, want) {
+		t.Errorf("Removed = %v, want %v", out.res.Removed, want)
+	}
+	got := srv.TeamMembers("acme", testTeam.Slug)
+	slices.Sort(got)
+	if want := []string{"alice", "bob"}; !slices.Equal(got, want) {
+		t.Errorf("team members after prune = %v, want %v", got, want)
+	}
+}
+
+func TestReconcileOrgNoInstallationIsSkipNotError(t *testing.T) {
+	srv := ghtest.New(t)
+	opts := Options{
+		Source: testApp(t, srv),
+		Team:   testTeam,
+		Roster: stringset.New("alice"),
+	}
+
+	out := reconcileOrg(context.Background(), &opts, "ghost")
+
+	if out.res.Err != nil {
+		t.Fatalf("reconcileOrg() err = %v, want nil for missing installation", out.res.Err)
+	}
+	wantSkips := []Skip{{Org: "ghost", Reason: SkipNoInstallation}}
+	if !slices.Equal(out.res.Skips, wantSkips) {
+		t.Errorf("Skips = %v, want %v", out.res.Skips, wantSkips)
+	}
+	if out.client != nil {
+		t.Error("client = non-nil, want nil when installation is missing")
+	}
+}
+
+func TestReconcileOrgStopsOnFirstWriteError(t *testing.T) {
+	srv := ghtest.New(t)
+	srv.AddOrg("acme", 7, "alice", "bob", "carol")
+	srv.FailMembershipPut("bob")
+	opts := Options{
+		Source: testApp(t, srv),
+		Team:   testTeam,
+		Roster: stringset.New("alice", "bob", "carol"),
+	}
+
+	out := reconcileOrg(context.Background(), &opts, "acme")
+
+	if out.res.Err == nil {
+		t.Fatal("reconcileOrg() err = nil, want the failed PUT surfaced")
+	}
+	if want := []string{"alice"}; !slices.Equal(out.res.Added, want) {
+		t.Errorf("Added = %v, want partial progress %v", out.res.Added, want)
+	}
+	for _, put := range srv.MembershipPuts() {
+		if put == "acme/"+testTeam.Slug+"/carol" {
+			t.Error("PUT issued for carol after bob failed, want the org stopped")
+		}
 	}
 }
