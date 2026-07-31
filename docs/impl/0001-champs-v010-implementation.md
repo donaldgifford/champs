@@ -287,13 +287,15 @@ plan.
 
 #### Tasks
 
-- [ ] Repo CI (`.github/workflows/ci.yml`) green on the full codebase —
-      `just test` + `just lint`. (This is a GitHub repo — no Forgejo workflow;
-      an erroneously added `.forgejo/workflows/ci.yml` was removed. Local
-      verification done with the workflow's exact commands: golangci-lint 0
-      issues, `just test-coverage` pass, `just coverage-gate` pass — the recipe
-      CI referenced but that never existed was added, and the codecov slug fixed
-      from the hclkit scaffold copy-paste. Remote runner green requires a push.)
+- [x] Repo CI (`.github/workflows/ci.yml`) green on the full codebase —
+      `just test` + `just lint`. (All 13 checks green on PR #1
+      `feat/champs-v0.1.0`. Getting there fixed: the `coverage-gate` recipe CI
+      referenced but that never existed, the codecov slug and SBOM path copied
+      from the hclkit scaffold, a nonexistent `trufflehog@v3` tag pin, the
+      missing Apache-2.0 LICENSE file that failed go-licenses, a
+      `golang.org/x/text` govulncheck finding (GO-2026-5970, bumped to v0.39.0),
+      CHANGELOG regenerated for the drift check, and the semver labels the
+      required-labels check expects.)
 - [x] `goreleaser check` passes; ldflags version injection verified in a
       snapshot build. (`goreleaser build --snapshot --single-target` →
       `champs version` prints the snapshot version, real commit SHA, and build
