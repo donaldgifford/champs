@@ -48,9 +48,9 @@ just run -- --help            # run via `go run`
 just release v0.1.0           # tags + pushes; CI runs goreleaser
 ```
 
-Multi-arch archives land on the Forgejo (or GitHub) release page. Version
-metadata (`version`, `commit`, `date`) is embedded via `-ldflags` and surfaced
-by `champs version` / `champs --version`.
+Multi-arch archives land on the GitHub release page. Version metadata
+(`version`, `commit`, `date`) is embedded via `-ldflags` and surfaced by
+`champs version` / `champs --version`.
 
 ## Container
 

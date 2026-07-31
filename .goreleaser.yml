@@ -1,7 +1,7 @@
 ---
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 # goreleaser config for champs
-# Triggered by .forgejo/workflows/release.yml or .github/workflows/release.yml on tag push.
+# Triggered by .github/workflows/release.yml on tag push.
 version: 2
 
 project_name: champs

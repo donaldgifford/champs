@@ -287,13 +287,13 @@ plan.
 
 #### Tasks
 
-- [ ] Repo CI (`.forgejo/workflows/ci.yml` + `.github` mirror) green on the full
-      codebase — `just test` + `just lint`. (Local verification done with the
-      workflow's exact commands: golangci-lint 0 issues, `just test-coverage`
-      pass, `just coverage-gate` pass — the recipe CI referenced but that never
-      existed was added, and the codecov slug fixed from the hclkit scaffold
-      copy-paste. Note: this repo has `.github/workflows/` only, no
-      `.forgejo/workflows/`. Remote runner green requires a push.)
+- [ ] Repo CI (`.github/workflows/ci.yml`) green on the full codebase —
+      `just test` + `just lint`. (This is a GitHub repo — no Forgejo workflow;
+      an erroneously added `.forgejo/workflows/ci.yml` was removed. Local
+      verification done with the workflow's exact commands: golangci-lint 0
+      issues, `just test-coverage` pass, `just coverage-gate` pass — the recipe
+      CI referenced but that never existed was added, and the codecov slug fixed
+      from the hclkit scaffold copy-paste. Remote runner green requires a push.)
 - [x] `goreleaser check` passes; ldflags version injection verified in a
       snapshot build. (`goreleaser build --snapshot --single-target` →
       `champs version` prints the snapshot version, real commit SHA, and build
@@ -312,8 +312,7 @@ plan.
 
 #### Success Criteria
 
-- CI green on Forgejo (and the GitHub mirror if active); release pipeline
-  validated.
+- CI green on GitHub Actions; release pipeline validated.
 - Sandbox plan shows expected adds/skips with zero writes issued.
 - Pilot apply matches its preceding plan; the immediate rerun is a no-op.
 - Scheduled workflow runs green and its output shows the skip records (standing
