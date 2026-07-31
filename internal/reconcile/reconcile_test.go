@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/donaldgifford/champs/internal/gh"
@@ -200,5 +201,111 @@ func TestRunResidueSkippedWithoutAnyClient(t *testing.T) {
 	}
 	if got := srv.Hits("/users/type0-ghost"); got != 0 {
 		t.Errorf("Hits(/users/type0-ghost) = %d, want 0", got)
+	}
+}
+
+// TestRunGuardRegressionNeverPutsNonMembers is the load-bearing invariant
+// test (DESIGN-0001): a membership PUT for a login outside the org member
+// list is what sends an org invitation, so across a full apply — roster
+// full of outsiders and unknowns, prune on — every recorded PUT must be
+// for an org member, and no invitation may exist anywhere afterward.
+func TestRunGuardRegressionNeverPutsNonMembers(t *testing.T) {
+	srv := ghtest.New(t)
+	members := map[string][]string{
+		"acme":  {"alice", "bob"},
+		"beta":  {"alice", "carol"},
+		"gamma": {"dave"},
+	}
+	srv.AddOrg("acme", 7, members["acme"]...)
+	srv.AddOrg("beta", 8, members["beta"]...)
+	srv.AddOrg("gamma", 9, members["gamma"]...)
+	srv.AddTeam("beta", ghtest.Team{Slug: runTeam.Slug}, "stale-member")
+	srv.AddUser("lonely")
+
+	res, err := reconcile.Run(context.Background(), &reconcile.Options{
+		Source: runApp(t, srv),
+		Team:   runTeam,
+		Orgs:   []string{"acme", "beta", "gamma"},
+		Roster: stringset.New("alice", "bob", "carol", "dave", "lonely", "type0-ghost"),
+		Prune:  true,
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v, want nil", err)
+	}
+	if res.HasErrors() {
+		t.Fatalf("Run() result has errors: %+v", res.Orgs)
+	}
+
+	for _, put := range srv.MembershipPuts() {
+		org, _, user, ok := splitPut(put)
+		if !ok {
+			t.Fatalf("MembershipPuts() entry %q is not org/slug/user", put)
+		}
+		if !slices.Contains(members[org], user) {
+			t.Errorf("membership PUT issued for %s in %s, who is not an org member — this sends an org invitation", user, org)
+		}
+	}
+	for org := range members {
+		if pending := srv.PendingInvites(org); len(pending) != 0 {
+			t.Errorf("PendingInvites(%s) = %v, want none — an invitation was sent", org, pending)
+		}
+	}
+	if cancelled := srv.CancelledInvites(); len(cancelled) != 0 {
+		t.Errorf("CancelledInvites() = %v, want none — the backstop fired, so the primary guard failed", cancelled)
+	}
+}
+
+// splitPut parses a ghtest membership PUT record "org/slug/user".
+func splitPut(put string) (org, slug, user string, ok bool) {
+	parts := strings.Split(put, "/")
+	if len(parts) != 3 {
+		return "", "", "", false
+	}
+	return parts[0], parts[1], parts[2], true
+}
+
+func TestRunIdempotentStateIssuesZeroWrites(t *testing.T) {
+	srv := ghtest.New(t)
+	seedFleet(srv)
+	srv.AddTeam("acme", ghtest.Team{Slug: runTeam.Slug}, "alice", "bob")
+	srv.AddTeam("beta", ghtest.Team{Slug: runTeam.Slug}, "alice", "carol")
+	srv.AddTeam("gamma", ghtest.Team{Slug: runTeam.Slug}, "dave")
+
+	res, err := reconcile.Run(context.Background(), &reconcile.Options{
+		Source: runApp(t, srv),
+		Team:   runTeam,
+		Orgs:   []string{"acme", "beta", "gamma"},
+		Roster: stringset.New("alice", "bob", "carol", "dave"),
+		Prune:  true,
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v, want nil", err)
+	}
+
+	// Skips persist on reconciled state — each champion is still
+	// not_org_member in the fleet's other orgs (the standing drift
+	// report). Writes and errors must be zero.
+	if want := (reconcile.Totals{Skipped: 7}); res.Totals() != want {
+		t.Errorf("Totals() = %+v, want %+v on reconciled state", res.Totals(), want)
+	}
+	if puts := srv.MembershipPuts(); len(puts) != 0 {
+		t.Errorf("MembershipPuts() = %v, want none — asserted by the fake, not just output", puts)
+	}
+	for _, org := range []string{"acme", "beta", "gamma"} {
+		if got := srv.Hits("/orgs/" + org + "/teams"); got != 0 {
+			t.Errorf("Hits(create team %s) = %d, want 0", org, got)
+		}
+	}
+	want := map[string][]string{
+		"acme":  {"alice", "bob"},
+		"beta":  {"alice", "carol"},
+		"gamma": {"dave"},
+	}
+	for org, wantMembers := range want {
+		got := srv.TeamMembers(org, runTeam.Slug)
+		slices.Sort(got)
+		if !slices.Equal(got, wantMembers) {
+			t.Errorf("TeamMembers(%s) = %v, want unchanged %v", org, got, wantMembers)
+		}
 	}
 }

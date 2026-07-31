@@ -211,10 +211,14 @@ the concurrency model.
       always return nil, per-org errors are data; each goroutine writes only its
       own index of a pre-sized slice, so collection is race-free and inherits
       sorted org order. Determinism tested at parallelism 1 vs 5.)
-- [ ] Guard regression test: fake server asserts no membership `PUT` is ever
-      issued for a login absent from the org member list.
-- [ ] Idempotency test: applying against already-reconciled fake state issues
-      zero writes.
+- [x] Guard regression test: fake server asserts no membership `PUT` is ever
+      issued for a login absent from the org member list. (Also asserts zero
+      pending invitations anywhere and that the cancellation backstop never
+      fired.)
+- [x] Idempotency test: applying against already-reconciled fake state issues
+      zero writes. (Zero membership `PUT`s, zero team-create `POST`s, team
+      member sets unchanged — asserted by the fake; cross-org `not_org_member`
+      skips persist as the standing drift report.)
 
 #### Success Criteria
 
@@ -316,9 +320,9 @@ plan.
       mocks).
 - [x] `httptest` fake GitHub API: pagination, team creation, membership `PUT`
       state handling, invitation cancellation.
-- [ ] Guard regression test: no membership `PUT` for a login absent from the org
+- [x] Guard regression test: no membership `PUT` for a login absent from the org
       member list — the load-bearing invariant test.
-- [ ] Idempotency test: rerun against reconciled state issues zero writes.
+- [x] Idempotency test: rerun against reconciled state issues zero writes.
 - [ ] CLI tests: exit codes, `--orgs` validation, no-ANSI-when-piped.
 - [ ] Manual sandbox `--dry-run` before first production use (Phase 5).
 
