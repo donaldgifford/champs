@@ -110,7 +110,10 @@ touches the network.
       after lowercasing, GitHub login-shape validation with line-numbered
       errors; returns an `internal/stringset.Set` (shared with Phase 3's
       reconcile math: Intersect/Diff/Sorted).
-- [ ] Table-driven unit tests for config and roster (pure functions, no mocks).
+- [x] Table-driven unit tests for config and roster (pure functions, no mocks):
+      design-example-verbatim parse, privacy default, diagnostics aggregation +
+      Render, every validation sentinel, key resolution matrix, messy-roster
+      normalization, login-shape rejections with line numbers, stringset ops.
 
 #### Success Criteria
 
@@ -286,7 +289,7 @@ plan.
 
 ## Testing Plan
 
-- [ ] Table-driven unit tests for set logic and login normalization (pure, no
+- [x] Table-driven unit tests for set logic and login normalization (pure, no
       mocks).
 - [ ] `httptest` fake GitHub API: pagination, team creation, membership `PUT`
       state handling, invitation cancellation.
