@@ -1,9 +1,21 @@
 package config
 
 import (
+	"errors"
 	"io"
 
 	"github.com/hashicorp/hcl/v2"
+)
+
+// Semantic validation failures, matchable with errors.Is. Load aggregates
+// them with errors.Join so one run reports every problem.
+var (
+	ErrNoOrgs         = errors.New("no orgs configured")
+	ErrEmptyTeamSlug  = errors.New("team slug is empty")
+	ErrMissingAppID   = errors.New("github app_id is not set")
+	ErrNoKeySource    = errors.New("no private key source")
+	ErrInvalidPrivacy = errors.New("invalid team privacy")
+	ErrDuplicateOrg   = errors.New("duplicate org")
 )
 
 // DiagnosticsError carries every HCL diagnostic from a parse so callers can

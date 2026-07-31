@@ -46,19 +46,28 @@ type Org struct {
 }
 
 // Loader parses configuration with injectable OS dependencies so tests can
-// substitute fakes for the filesystem.
+// substitute fakes for the filesystem and environment.
 type Loader struct {
 	// ReadFile reads a file's contents. Nil means os.ReadFile.
 	ReadFile func(name string) ([]byte, error)
+	// LookupEnv reports an environment variable. Nil means os.LookupEnv.
+	LookupEnv func(key string) (string, bool)
 }
 
-// Load reads and parses the configuration file at path.
+// Load reads, parses, and validates the configuration file at path.
 func (l Loader) Load(path string) (*Config, error) {
 	src, err := l.readFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading config: %w", err)
 	}
-	return Parse(src, path)
+	cfg, err := Parse(src, path)
+	if err != nil {
+		return nil, err
+	}
+	if err := l.validate(cfg); err != nil {
+		return nil, fmt.Errorf("invalid config %s: %w", path, err)
+	}
+	return cfg, nil
 }
 
 func (l Loader) readFile(name string) ([]byte, error) {
@@ -68,15 +77,16 @@ func (l Loader) readFile(name string) ([]byte, error) {
 	return os.ReadFile(name)
 }
 
-// Load reads and parses the configuration file at path using the real
-// filesystem.
+// Load reads, parses, and validates the configuration file at path using the
+// real filesystem and environment.
 func Load(path string) (*Config, error) {
 	return Loader{}.Load(path)
 }
 
-// Parse parses src as champs HCL configuration. filename appears in
-// diagnostics only. All syntax and decode problems are aggregated into a
-// single *DiagnosticsError rather than returned one at a time.
+// Parse parses src as champs HCL configuration without semantic validation;
+// Load applies it. filename appears in diagnostics only. All syntax and
+// decode problems are aggregated into a single *DiagnosticsError rather than
+// returned one at a time.
 func Parse(src []byte, filename string) (*Config, error) {
 	parser := hclparse.NewParser()
 	file, diags := parser.ParseHCL(src, filename)

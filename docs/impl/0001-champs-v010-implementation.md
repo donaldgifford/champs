@@ -98,9 +98,10 @@ touches the network.
       — `team {slug, description, privacy}`,
       `github {app_id, private_key_path}`, repeated `org "<name>" {}` blocks.
       (hclkit swap-out: see Dependencies.)
-- [ ] Config validation: at least one org, non-empty team slug, `app_id` set,
-      exactly one private-key source resolvable; errors wrapped with `%w` and
-      actionable.
+- [x] Config validation: at least one org (no duplicates), non-empty team slug,
+      valid privacy, `app_id` set, at least one private-key source available
+      (env wins when both are set); sentinel errors aggregated with
+      `errors.Join`, wrapped with `%w`, actionable.
 - [ ] Private key resolution: `CHAMPS_GITHUB_PRIVATE_KEY` env var (PEM contents)
       wins over `private_key_path`.
 - [ ] `internal/roster`: single-column CSV parse — optional header, lowercase,
