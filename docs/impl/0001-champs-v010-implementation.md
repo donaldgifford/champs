@@ -186,9 +186,10 @@ the concurrency model.
 
 #### Tasks
 
-- [ ] `internal/reconcile`: pure set ops — intersection,
+- [x] `internal/reconcile`: pure set ops — intersection,
       `adds = desired −     team_members`, `removes = team_members − desired` —
-      with table-driven tests.
+      with table-driven tests. (`computeDiff` + `Result`/`OrgResult`/`Skip`
+      types; skips sorted, outputs deterministic.)
 - [ ] Per-org reconcile unit (steps 1–7) returning a result struct
       `{org, adds, removes, skips, err}`; dry-run computes everything and writes
       nothing.
