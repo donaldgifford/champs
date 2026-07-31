@@ -10,6 +10,9 @@ package reconcile
 import (
 	"context"
 	"errors"
+	"slices"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/donaldgifford/champs/internal/gh"
 	"github.com/donaldgifford/champs/internal/stringset"
@@ -56,4 +59,50 @@ type Options struct {
 	// Parallelism bounds concurrent orgs; values <= 0 mean
 	// DefaultParallelism.
 	Parallelism int
+}
+
+// Run reconciles every org and returns the collected Result. The
+// returned error is fatal-only — a guard trip before any org work.
+// Per-org failures are data in Result: one org's error never aborts the
+// others, and the Result is identical at any parallelism.
+func Run(ctx context.Context, opts *Options) (*Result, error) {
+	if opts.Prune && opts.Roster.Len() == 0 {
+		return nil, ErrEmptyRosterPrune
+	}
+
+	par := opts.Parallelism
+	if par <= 0 {
+		par = DefaultParallelism
+	}
+	orgs := slices.Clone(opts.Orgs)
+	slices.Sort(orgs)
+
+	// Plain errgroup.Group, deliberately not WithContext: every worker
+	// returns nil — per-org errors are data in its outcome — so a
+	// derived context would never fire, while inviting a refactor where
+	// one org's error silently cancels its siblings. Each goroutine
+	// writes only its own outcomes index, so collection needs no mutex
+	// and inherits the sorted org order.
+	outcomes := make([]orgOutcome, len(orgs))
+	var g errgroup.Group
+	g.SetLimit(par)
+	for i, org := range orgs {
+		g.Go(func() error {
+			outcomes[i] = reconcileOrg(ctx, opts, org)
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return nil, err // unreachable: workers always return nil
+	}
+
+	res := &Result{
+		DryRun: opts.DryRun,
+		Prune:  opts.Prune,
+		Orgs:   make([]OrgResult, 0, len(orgs)),
+	}
+	for _, o := range outcomes {
+		res.Orgs = append(res.Orgs, o.res)
+	}
+	return res, nil
 }

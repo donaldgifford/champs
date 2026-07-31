@@ -200,11 +200,15 @@ the concurrency model.
       something else fails.)
 - [ ] Cross-org residue check: one `UserExists` call per roster login seen in
       zero orgs; reclassify those skips as `unknown_user`.
-- [ ] Empty-roster prune guard: roster parses to zero logins with `--prune` set
-      → fail before any writes.
-- [ ] Org fan-out: `errgroup` bounded by `--parallelism` (default 5, OQ-5),
+- [x] Empty-roster prune guard: roster parses to zero logins with `--prune` set
+      → fail before any writes. (`ErrEmptyRosterPrune`; test asserts zero token
+      mints.)
+- [x] Org fan-out: `errgroup` bounded by `--parallelism` (default 5, OQ-5),
       sequential calls within an org, results collected and sorted org-then-user
-      after the join.
+      after the join. (Plain `errgroup.Group`, not `WithContext` — workers
+      always return nil, per-org errors are data; each goroutine writes only its
+      own index of a pre-sized slice, so collection is race-free and inherits
+      sorted org order. Determinism tested at parallelism 1 vs 5.)
 - [ ] Guard regression test: fake server asserts no membership `PUT` is ever
       issued for a login absent from the org member list.
 - [ ] Idempotency test: applying against already-reconciled fake state issues
