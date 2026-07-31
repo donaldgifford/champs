@@ -159,9 +159,12 @@ consume and the tests can fake.
       minting, REST, and GraphQL all get it. Known v0.1.0 limitation noted in
       code: retried body-carrying writes are not body-rewound; idempotent reruns
       heal.
-- [ ] `httptest` fake GitHub server: REST pagination, team 404→create,
-      membership `PUT` returning both states, invitation cancellation, and a
-      `/graphql` handler for the `membersWithRole` query.
+- [x] `httptest` fake GitHub server (`internal/ghtest`, reused by Phase 3): REST
+      Link-header pagination, team 404→create, GitHub-realistic membership `PUT`
+      (org member → `active`; non-member → `pending` + org invitation created),
+      invitation cancellation, token minting, a `/graphql` `membersWithRole`
+      handler, and one-shot secondary-rate-limit injection (`Retry-After` must
+      be ≥ 1 — the limiter ignores 0).
 
 #### Success Criteria
 
@@ -291,6 +294,7 @@ plan.
 | `internal/config/*.go`            | Create | HCL config parsing + validation, key resolution                                           |
 | `internal/roster/*.go`            | Create | CSV parsing + normalization                                                               |
 | `internal/gh/*.go`                | Create | App auth, installation tokens, REST/GraphQL operations, retry transport, typed errors     |
+| `internal/ghtest/*.go`            | Create | Fake GitHub API server for gh + reconcile tests                                           |
 | `internal/reconcile/*.go`         | Create | Set logic, per-org unit, guards, fan-out, result types                                    |
 | `internal/render/*.go`            | Create | Terraform-style diff + summary rendering, color handling                                  |
 | `champs.hcl` + roster + workflows | Create | Location pending OQ-2                                                                     |
@@ -299,7 +303,7 @@ plan.
 
 - [x] Table-driven unit tests for set logic and login normalization (pure, no
       mocks).
-- [ ] `httptest` fake GitHub API: pagination, team creation, membership `PUT`
+- [x] `httptest` fake GitHub API: pagination, team creation, membership `PUT`
       state handling, invitation cancellation.
 - [ ] Guard regression test: no membership `PUT` for a login absent from the org
       member list — the load-bearing invariant test.
