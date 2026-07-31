@@ -236,27 +236,37 @@ stdout stream.
 
 #### Tasks
 
-- [ ] cobra root command in `internal/cli`; `cmd/champs/main.go` stays thin (set
+- [x] cobra root command in `internal/cli`; `cmd/champs/main.go` stays thin (set
       `slog` default JSON handler, call `cli.Execute`, map error to exit 1).
-- [ ] `apply` with `--config`, `--roster`, `--orgs`, `--prune`, `--dry-run`,
-      `--no-color`, `--parallelism` (default 5).
-- [ ] `plan` as a true alias for `apply --dry-run`.
-- [ ] `version` subcommand (plus cobra's `--version`) printing the
+      (`Execute` returns the exit code; `ErrRunFailed` sentinel marks
+      already-rendered per-org failures; a fresh command tree is built per
+      execution — no package-level flag state.)
+- [x] `apply` with `--config`, `--roster`, `--orgs`, `--prune`, `--dry-run`,
+      `--no-color`, `--parallelism` (default 5). (Flags are local, not
+      persistent, so `version` inherits nothing; `CHAMPS_GITHUB_BASE_URL` env
+      override points the real path at the test server / future GHES.)
+- [x] `plan` as a true alias for `apply --dry-run`. (Same `runE` and flag set,
+      dry-run forced by construction; byte-identical output proven by test.)
+- [x] `version` subcommand (plus cobra's `--version`) printing the
       ldflags-injected `version`/`commit`/`date` already declared in `main.go`.
-- [ ] `--orgs` validation: hard error before any API call when a name is not in
-      the config (OQ-4).
+- [x] `--orgs` validation: hard error before any API call when a name is not in
+      the config (OQ-4). (Names the bogus org(s), lists the configured ones,
+      dedupes; zero token mints asserted.)
 - [x] Diff renderer: adds in green, removals in red; end-of-run summary of
       per-org added/removed/skipped counts, org-level errors, run totals. (Raw
       ANSI, not `fatih/color` — three escape codes don't justify a dep whose
       package-global state fights writer injection; `Renderer{Out,     Color}`
       is pure policy-in.)
-- [ ] Color auto-disable: `--no-color` flag, `NO_COLOR` env var, or non-TTY
-      stdout.
+- [x] Color auto-disable: `--no-color` flag, `NO_COLOR` env var, or non-TTY
+      stdout. (Non-TTY = writer isn't an `*os.File` character device — the
+      no-ANSI-when-piped contract falls out; no `x/term` dep.)
 - [x] Skip records as `slog` JSON on the same stdout stream. (Renderer-local
       JSON handler with the `time` attr stripped so consecutive runs diff
       cleanly — the standing drift report; `no_installation` logs at WARN.)
-- [ ] Exit codes: `0` completed (skips included), `1` on any error — fatal or
-      per-org; a failing org never aborts the others.
+- [x] Exit codes: `0` completed (skips included), `1` on any error — fatal or
+      per-org; a failing org never aborts the others. (Fatal errors print to
+      stderr — `DiagnosticsError` gets its full HCL rendering; per-org errors
+      are already in the summary so nothing extra prints.)
 
 #### Success Criteria
 
@@ -306,18 +316,18 @@ plan.
 
 ## File Changes
 
-| File                              | Action | Description                                                                               |
-| --------------------------------- | ------ | ----------------------------------------------------------------------------------------- |
-| `go.mod` / `go.sum`               | Modify | hclkit, cobra, go-github + ghinstallation, githubv4, go-github-ratelimit, color, `x/sync` |
-| `cmd/champs/main.go`              | Modify | slog default handler, call `cli.Execute`, keep ldflags vars                               |
-| `internal/cli/*.go`               | Create | cobra root, `apply`, `plan`, `version`, flag wiring                                       |
-| `internal/config/*.go`            | Create | HCL config parsing + validation, key resolution                                           |
-| `internal/roster/*.go`            | Create | CSV parsing + normalization                                                               |
-| `internal/gh/*.go`                | Create | App auth, installation tokens, REST/GraphQL operations, retry transport, typed errors     |
-| `internal/ghtest/*.go`            | Create | Fake GitHub API server for gh + reconcile tests                                           |
-| `internal/reconcile/*.go`         | Create | Set logic, per-org unit, guards, fan-out, result types                                    |
-| `internal/render/*.go`            | Create | Terraform-style diff + summary rendering, color handling                                  |
-| `champs.hcl` + roster + workflows | Create | Location pending OQ-2                                                                     |
+| File                              | Action | Description                                                                                                    |
+| --------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------- |
+| `go.mod` / `go.sum`               | Modify | hcl/v2, cobra, go-github + ghinstallation, githubv4, go-github-ratelimit, `x/sync` (no fatih/color — raw ANSI) |
+| `cmd/champs/main.go`              | Modify | slog default handler, call `cli.Execute`, keep ldflags vars                                                    |
+| `internal/cli/*.go`               | Create | cobra root, `apply`, `plan`, `version`, flag wiring                                                            |
+| `internal/config/*.go`            | Create | HCL config parsing + validation, key resolution                                                                |
+| `internal/roster/*.go`            | Create | CSV parsing + normalization                                                                                    |
+| `internal/gh/*.go`                | Create | App auth, installation tokens, REST/GraphQL operations, retry transport, typed errors                          |
+| `internal/ghtest/*.go`            | Create | Fake GitHub API server for gh + reconcile tests                                                                |
+| `internal/reconcile/*.go`         | Create | Set logic, per-org unit, guards, fan-out, result types                                                         |
+| `internal/render/*.go`            | Create | Terraform-style diff + summary rendering, color handling                                                       |
+| `champs.hcl` + roster + workflows | Create | Location pending OQ-2                                                                                          |
 
 ## Testing Plan
 
@@ -328,7 +338,7 @@ plan.
 - [x] Guard regression test: no membership `PUT` for a login absent from the org
       member list — the load-bearing invariant test.
 - [x] Idempotency test: rerun against reconciled state issues zero writes.
-- [ ] CLI tests: exit codes, `--orgs` validation, no-ANSI-when-piped.
+- [x] CLI tests: exit codes, `--orgs` validation, no-ANSI-when-piped.
 - [ ] Manual sandbox `--dry-run` before first production use (Phase 5).
 
 ## Dependencies
