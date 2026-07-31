@@ -245,11 +245,16 @@ stdout stream.
       ldflags-injected `version`/`commit`/`date` already declared in `main.go`.
 - [ ] `--orgs` validation: hard error before any API call when a name is not in
       the config (OQ-4).
-- [ ] Diff renderer: adds in green, removals in red; end-of-run summary of
-      per-org added/removed/skipped counts, org-level errors, run totals.
+- [x] Diff renderer: adds in green, removals in red; end-of-run summary of
+      per-org added/removed/skipped counts, org-level errors, run totals. (Raw
+      ANSI, not `fatih/color` — three escape codes don't justify a dep whose
+      package-global state fights writer injection; `Renderer{Out,     Color}`
+      is pure policy-in.)
 - [ ] Color auto-disable: `--no-color` flag, `NO_COLOR` env var, or non-TTY
       stdout.
-- [ ] Skip records as `slog` JSON on the same stdout stream.
+- [x] Skip records as `slog` JSON on the same stdout stream. (Renderer-local
+      JSON handler with the `time` attr stripped so consecutive runs diff
+      cleanly — the standing drift report; `no_installation` logs at WARN.)
 - [ ] Exit codes: `0` completed (skips included), `1` on any error — fatal or
       per-org; a failing org never aborts the others.
 
