@@ -29,6 +29,7 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 - *(claude)* Repo lives on GitHub, drop Forgejo references
 - *(claude)* Add languages to code fences (MD040)
 - Add Apache-2.0 license file
+- *(impl)* CI green on PR #1 — check off the phase 5 CI task
 
 ### Styling
 
