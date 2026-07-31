@@ -82,7 +82,11 @@ func reconcileOrg(ctx context.Context, opts *Options, org string) orgOutcome {
 // currentTeamMembers reads current team membership. Apply ensures the
 // team exists first; dry-run must not create it (EnsureTeam is a write),
 // so a 404 maps to the empty set the apply would start from.
-func currentTeamMembers(ctx context.Context, client *gh.OrgClient, opts *Options) (stringset.Set, error) {
+func currentTeamMembers(
+	ctx context.Context,
+	client *gh.OrgClient,
+	opts *Options,
+) (stringset.Set, error) {
 	if opts.DryRun {
 		members, err := client.ListTeamMembers(ctx, opts.Team.Slug)
 		if gh.IsNotFound(err) {
@@ -101,7 +105,11 @@ func currentTeamMembers(ctx context.Context, client *gh.OrgClient, opts *Options
 // removes = teamMembers − desired (only when pruning), and one
 // not_org_member skip per roster login absent from the org. All outputs
 // are sorted ascending.
-func computeDiff(org string, roster, orgMembers, teamMembers stringset.Set, prune bool) (adds, removes []string, skips []Skip) {
+func computeDiff(
+	org string,
+	roster, orgMembers, teamMembers stringset.Set,
+	prune bool,
+) (adds, removes []string, skips []Skip) {
 	desired := roster.Intersect(orgMembers)
 	adds = desired.Diff(teamMembers).Sorted()
 	if prune {
