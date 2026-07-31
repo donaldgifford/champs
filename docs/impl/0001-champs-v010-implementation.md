@@ -13,6 +13,7 @@ created: 2026-07-30
 **Status:** In Progress **Author:** Donald Gifford **Date:** 2026-07-30
 
 <!--toc:start-->
+
 - [Objective](#objective)
 - [Scope](#scope)
   - [In Scope](#in-scope)
@@ -131,25 +132,33 @@ consume and the tests can fake.
 
 #### Tasks
 
-- [ ] Add client dependencies: `google/go-github` +
-      `bradleyfalzon/ghinstallation` (OQ-1), `shurcooL/githubv4` reusing the
-      same installation transport (OQ-3), `gofri/go-github-ratelimit` (OQ-6).
-- [ ] App auth: JWT from app ID + private key; resolve the installation per org;
-      mint and cache a per-org installation token; expose a per-org client.
-- [ ] Missing installation → typed error the engine maps to `no_installation`
-      (never a crash).
-- [ ] `ListOrgMembers(org)` — GraphQL `membersWithRole`, cursor-paginated,
-      logins only, returns a lowercase login set (OQ-3).
-- [ ] `EnsureTeam(org)` — GET by slug, create on 404 with config settings; never
+- [x] Add client dependencies: `google/go-github/v89` +
+      `bradleyfalzon/ghinstallation/v2` (OQ-1), `shurcooL/githubv4` reusing the
+      same installation transport (OQ-3), `gofri/go-github-ratelimit/v2` (OQ-6).
+- [x] App auth: JWT from app ID + private key (`gh.NewApp`); resolve the
+      installation per org; per-org installation transport (shallow-copied
+      `AppsTransport` — the shared pointer races under fan-out) feeding both
+      REST and GraphQL clients; `WithBaseURL` points everything (REST, GraphQL,
+      token minting) at one test server.
+- [x] Missing installation → `ErrNoInstallation` sentinel the engine maps to
+      `no_installation` (never a crash).
+- [x] `ListOrgMembers` — GraphQL `membersWithRole`, cursor-paginated, logins
+      only, returns a lowercase login set (OQ-3).
+- [x] `EnsureTeam` — GET by slug, create on 404 with config settings; never
       modifies an existing team's settings.
-- [ ] `ListTeamMembers(org, slug)` — paginated, returns a lowercase login set.
-- [ ] `AddTeamMember(org, slug, user)` — membership `PUT`, then assert response
-      `state == "active"`; on `"pending"` cancel the invitation and return a
-      typed guard-breach error.
-- [ ] `RemoveTeamMember(org, slug, user)` — membership `DELETE`.
-- [ ] `UserExists(login)` — `GET /users/{login}` for the residue check.
-- [ ] Wrap the shared transport with secondary-rate-limit retry honoring
-      `Retry-After` (OQ-6) — one transport, so REST and GraphQL both get it.
+- [x] `ListTeamMembers` — paginated, returns a lowercase login set (maintainers
+      included; prune does not special-case them).
+- [x] `AddTeamMember` — membership `PUT`, then assert response
+      `state == "active"`; on `"pending"` cancel the org invitation and return
+      `*GuardBreachError{Org, User, CancelErr}`.
+- [x] `RemoveTeamMember` — membership `DELETE` (team only, never org).
+- [x] `UserExists` — `GET /users/{login}` for the residue check (rides the
+      installation token; app JWTs only authorize `/app/*` endpoints).
+- [x] Wrap the shared transport with secondary-rate-limit retry honoring
+      `Retry-After` (OQ-6) — one limiter beneath ghinstallation, so token
+      minting, REST, and GraphQL all get it. Known v0.1.0 limitation noted in
+      code: retried body-carrying writes are not body-rewound; idempotent reruns
+      heal.
 - [ ] `httptest` fake GitHub server: REST pagination, team 404→create,
       membership `PUT` returning both states, invitation cancellation, and a
       `/graphql` handler for the `membersWithRole` query.
