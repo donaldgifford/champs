@@ -80,7 +80,10 @@ func TestParseErrors(t *testing.T) {
 		{"consecutive hyphens", "a--b\n", roster.ErrInvalidLogin, nil},
 		{"illegal character", "al_ice\n", roster.ErrInvalidLogin, nil},
 		{"too long", strings.Repeat("a", 40) + "\n", roster.ErrInvalidLogin, nil},
-		{"aggregates all bad lines", "-a\nok\nb--c\n", roster.ErrInvalidLogin, []string{"line 1", "line 3"}},
+		{
+			"aggregates all bad lines", "-a\nok\nb--c\n",
+			roster.ErrInvalidLogin, []string{"line 1", "line 3"},
+		},
 	}
 
 	for _, tt := range tests {

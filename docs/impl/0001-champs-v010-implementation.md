@@ -1,7 +1,7 @@
 ---
 id: IMPL-0001
 title: "champs v0.1.0 implementation"
-status: Draft
+status: In Progress
 author: Donald Gifford
 created: 2026-07-30
 ---
@@ -10,10 +10,9 @@ created: 2026-07-30
 
 # IMPL 0001: champs v0.1.0 implementation
 
-**Status:** Draft **Author:** Donald Gifford **Date:** 2026-07-30
+**Status:** In Progress **Author:** Donald Gifford **Date:** 2026-07-30
 
 <!--toc:start-->
-
 - [Objective](#objective)
 - [Scope](#scope)
   - [In Scope](#in-scope)

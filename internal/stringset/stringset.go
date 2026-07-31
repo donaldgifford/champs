@@ -39,7 +39,7 @@ func (s Set) Intersect(other Set) Set {
 	if len(large) < len(small) {
 		small, large = large, small
 	}
-	out := make(Set)
+	out := make(Set, len(small))
 	for v := range small {
 		if large.Contains(v) {
 			out.Add(v)
@@ -50,7 +50,7 @@ func (s Set) Intersect(other Set) Set {
 
 // Diff returns a new Set with the elements of s that are not in other.
 func (s Set) Diff(other Set) Set {
-	out := make(Set)
+	out := make(Set, len(s))
 	for v := range s {
 		if !other.Contains(v) {
 			out.Add(v)

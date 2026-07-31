@@ -11,7 +11,6 @@ created: 2026-07-29
 # DESIGN 0001: champs: security champions team management CLI
 
 <!--toc:start-->
-
 - [Overview](#overview)
 - [Goals and Non-Goals](#goals-and-non-goals)
   - [Goals](#goals)

@@ -110,7 +110,7 @@ func TestParseDiagnostics(t *testing.T) {
 			}
 
 			var buf bytes.Buffer
-			if err := de.Render(&buf, 78, false); err != nil {
+			if err := de.Render(&buf, 78, false /* color */); err != nil {
 				t.Fatalf("Render() error = %v, want nil", err)
 			}
 			if buf.Len() == 0 {
