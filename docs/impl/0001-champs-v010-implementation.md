@@ -102,8 +102,9 @@ touches the network.
       valid privacy, `app_id` set, at least one private-key source available
       (env wins when both are set); sentinel errors aggregated with
       `errors.Join`, wrapped with `%w`, actionable.
-- [ ] Private key resolution: `CHAMPS_GITHUB_PRIVATE_KEY` env var (PEM contents)
-      wins over `private_key_path`.
+- [x] Private key resolution: `CHAMPS_GITHUB_PRIVATE_KEY` env var (PEM contents)
+      wins over `private_key_path`; both sources PEM-sanity-checked
+      (`ErrInvalidPEM`) so a mispasted secret fails at load with a named source.
 - [ ] `internal/roster`: single-column CSV parse — optional header, lowercase,
       trim whitespace, drop empty lines, dedupe after lowercasing; returns a
       set.

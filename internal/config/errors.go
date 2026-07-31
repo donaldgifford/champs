@@ -16,6 +16,7 @@ var (
 	ErrNoKeySource    = errors.New("no private key source")
 	ErrInvalidPrivacy = errors.New("invalid team privacy")
 	ErrDuplicateOrg   = errors.New("duplicate org")
+	ErrInvalidPEM     = errors.New("not valid PEM data")
 )
 
 // DiagnosticsError carries every HCL diagnostic from a parse so callers can
