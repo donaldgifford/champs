@@ -18,7 +18,7 @@ here too — only Go-specific guidance is captured below.
 
 ## Layout
 
-```
+```text
 cmd/champs/    # main package — keep thin, parse flags + call into internal/
 internal/               # library code; not importable outside this module
 Dockerfile              # multi-stage distroless build, cached layers
@@ -54,7 +54,7 @@ justfile                # `just` task runner — `just` for the menu
 
 Built locally with:
 
-```
+```sh
 docker build -t champs:dev \
   --build-arg VERSION=$(git describe --tags --always) \
   --build-arg COMMIT=$(git rev-parse --short HEAD) \
