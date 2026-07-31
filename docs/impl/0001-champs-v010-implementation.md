@@ -94,10 +94,10 @@ touches the network.
 
 #### Tasks
 
-- [ ] `internal/config`: parse the DESIGN-0001 HCL shape with `hclkit` —
-      `team {slug, description, privacy}`,
-      `github {app_id,     private_key_path}`, repeated `org "<name>" {}`
-      blocks.
+- [x] `internal/config`: parse the DESIGN-0001 HCL shape with `hcl/v2` + `gohcl`
+      — `team {slug, description, privacy}`,
+      `github {app_id, private_key_path}`, repeated `org "<name>" {}` blocks.
+      (hclkit swap-out: see Dependencies.)
 - [ ] Config validation: at least one org, non-empty team slug, `app_id` set,
       exactly one private-key source resolvable; errors wrapped with `%w` and
       actionable.
@@ -294,7 +294,9 @@ plan.
 
 ## Dependencies
 
-- `hclkit` for HCL parsing (homelab library, per DESIGN-0001).
+- `hashicorp/hcl/v2` + `gohcl` for HCL parsing. DESIGN-0001 named `hclkit`, but
+  as of 2026-07-31 hclkit is a fresh scaffold whose only importable package is
+  `cmd/hclkit` — it has no public library API. Swap it in if it grows one.
 - `spf13/cobra` (house default), `fatih/color`, `golang.org/x/sync/errgroup`.
 - `google/go-github` + `bradleyfalzon/ghinstallation` (REST + app auth),
   `shurcooL/githubv4` (member listing), `gofri/go-github-ratelimit`

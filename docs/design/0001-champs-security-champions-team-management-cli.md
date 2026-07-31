@@ -134,9 +134,10 @@ installation is a distinct error category surfaced in the run output
 
 ### Configuration
 
-HCL, parsed with `hclkit`. The config declares which orgs are managed and the
-team settings; the roster is deliberately kept out of the config so it can be
-exported from wherever the program tracks champions.
+HCL, parsed with `hashicorp/hcl/v2` (`gohcl`) — `hclkit` exposes no public API
+yet. The config declares which orgs are managed and the team settings; the
+roster is deliberately kept out of the config so it can be exported from
+wherever the program tracks champions.
 
 ```hcl
 team {
