@@ -30,6 +30,7 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 - *(claude)* Add languages to code fences (MD040)
 - Add Apache-2.0 license file
 - *(impl)* CI green on PR #1 — check off the phase 5 CI task
+- Add USAGE, DEVELOPMENT, MAINTAINERS, example config; refresh README
 
 ### Styling
 
