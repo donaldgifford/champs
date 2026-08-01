@@ -1,11 +1,16 @@
 # champs
 
+[![CI](https://github.com/donaldgifford/champs/actions/workflows/ci.yml/badge.svg)](https://github.com/donaldgifford/champs/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 A Go CLI that reconciles a per-org `security_champions` GitHub team as
 `roster ∩ org_members` — under the hard invariant that it never expands
-organization access (it will never send an org invitation). See
-[DESIGN-0001](docs/design/0001-champs-security-champions-team-management-cli.md)
-for the full design and
-[IMPL-0001](docs/impl/0001-champs-v010-implementation.md) for delivery status.
+organization access (it will never send an org invitation).
+
+It authenticates as a GitHub App, fans out across every configured org, prints a
+Terraform-style plan/apply diff, and exits with codes CI can react to. Champions
+who aren't org members yet are reported as skips — the standing "needs an invite
+through the normal process" list — never invited.
 
 ## Usage
 
@@ -27,20 +32,41 @@ per org, skip records as timestamp-free `slog` JSON lines (`not_org_member`,
 (skips included); exit `1` means any error — per-org errors never abort the
 other orgs.
 
-Configuration is HCL (`team`, `github`, repeated `org` blocks); the App private
-key comes from `CHAMPS_GITHUB_PRIVATE_KEY` (PEM contents, preferred) or
+Configuration is HCL (`team`, `github`, repeated `org` blocks) — see
+[example.config.hcl](example.config.hcl) for a commented starting point. The App
+private key comes from `CHAMPS_GITHUB_PRIVATE_KEY` (PEM contents, preferred) or
 `private_key_path`. The roster is a single-column CSV of GitHub logins with an
 optional `login`/`username` header.
 
-## Quickstart
+**[USAGE.md](USAGE.md) is the full operator reference** — GitHub App
+prerequisites, the complete config/roster schema, the output contract, the
+safety model, and CI deployment patterns.
+
+## Quickstart (developers)
 
 ```sh
-mise install                  # toolchain
+mise install                  # pinned toolchain
 just                          # task menu
-just build                    # binary at bin/champs
+just build                    # binary at build/bin/champs
 just test                     # race + coverage
-just run -- --help            # run via `go run`
+just check                    # lint + test, the pre-commit gate
 ```
+
+**[DEVELOPMENT.md](DEVELOPMENT.md) has the rest** — repo layout, how the
+fake-GitHub test suite works, step-by-step instructions for setting up a free
+test org with a real GitHub App, and what CI enforces on PRs.
+
+## Documentation
+
+| Document                                                                         | What's in it                                         |
+| -------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| [USAGE.md](USAGE.md)                                                             | Operator reference: config, roster, output, safety.  |
+| [example.config.hcl](example.config.hcl)                                         | Commented example configuration.                     |
+| [DEVELOPMENT.md](DEVELOPMENT.md)                                                 | Dev setup, testing (incl. real-org walkthrough), CI. |
+| [CONTRIBUTING.md](CONTRIBUTING.md)                                               | How to report issues and submit PRs.                 |
+| [MAINTAINERS.md](MAINTAINERS.md)                                                 | Who maintains champs; security contact.              |
+| [DESIGN-0001](docs/design/0001-champs-security-champions-team-management-cli.md) | The design: invariant, skip taxonomy, decisions.     |
+| [IMPL-0001](docs/impl/0001-champs-v010-implementation.md)                        | Phase-by-phase delivery tracking for v0.1.0.         |
 
 ## Release
 
@@ -48,27 +74,17 @@ just run -- --help            # run via `go run`
 just release v0.1.0           # tags + pushes; CI runs goreleaser
 ```
 
-Multi-arch archives land on the GitHub release page. Version metadata
-(`version`, `commit`, `date`) is embedded via `-ldflags` and surfaced by
-`champs version` / `champs --version`.
-
-## Container
-
-```sh
-docker build -t champs:dev \
-  --build-arg VERSION=$(git describe --tags --always) \
-  --build-arg COMMIT=$(git rev-parse --short HEAD) \
-  --build-arg DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ) .
-```
-
-Image is distroless + nonroot; entrypoint is `champs`.
+Multi-arch archives (linux/darwin × amd64/arm64) land on the GitHub release page
+with checksums and SBOMs. Version metadata (`version`, `commit`, `date`) is
+embedded via `-ldflags` and surfaced by `champs version` / `champs --version`.
 
 ## Layout
 
 ```text
-cmd/champs/    main package
+cmd/champs/             main package
 internal/               library code (private to this module)
-Dockerfile              multi-stage distroless build
+docs/                   design + implementation docs (docz-managed)
+.github/workflows/      CI, security scanning, release
 .goreleaser.yml         release config
 mise.toml               pinned toolchain
 justfile                task runner
