@@ -23,10 +23,6 @@ yamlfmt = "0.20.0"
 yamllint = "1.37.1"
 # renovate: datasource=npm depName=prettier
 prettier = "3.7.4"
-# renovate: datasource=github-releases depName=donaldgifford/makefmt
-"github:donaldgifford/makefmt" = "latest"
-# renovate: datasource=github-releases depName=mrtazz/checkmake
-checkmake = "latest"
 # renovate: datasource=github-releases depName=orhun/git-cliff
 git-cliff = "latest"
 # renovate: datasource=github-releases depName=rhysd/actionlint
