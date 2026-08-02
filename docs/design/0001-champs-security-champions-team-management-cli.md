@@ -1,7 +1,7 @@
 ---
 id: DESIGN-0001
 title: "champs: security champions team management CLI"
-status: Draft
+status: Approved
 author: Donald Gifford
 created: 2026-07-29
 ---
@@ -11,30 +11,29 @@ created: 2026-07-29
 # DESIGN 0001: champs: security champions team management CLI
 
 <!--toc:start-->
+- [Overview](#overview)
+- [Goals and Non-Goals](#goals-and-non-goals)
+  - [Goals](#goals)
+  - [Non-Goals](#non-goals)
+- [Background](#background)
+- [Detailed Design](#detailed-design)
+  - [Authentication](#authentication)
+  - [Configuration](#configuration)
+  - [Roster input](#roster-input)
+  - [Reconciliation algorithm](#reconciliation-algorithm)
+  - [The membership guard](#the-membership-guard)
+  - [Concurrency](#concurrency)
+  - [Run output](#run-output)
+  - [Scheduling](#scheduling)
+- [API / Interface Changes](#api--interface-changes)
+- [Data Model](#data-model)
+- [Testing Strategy](#testing-strategy)
+- [Migration / Rollout Plan](#migration--rollout-plan)
+- [Open Questions](#open-questions)
+- [References](#references)
+<!--toc:end-->
 
-- [DESIGN 0001: champs: security champions team management CLI](#design-0001-champs-security-champions-team-management-cli)
-  - [Overview](#overview)
-  - [Goals and Non-Goals](#goals-and-non-goals)
-    - [Goals](#goals)
-    - [Non-Goals](#non-goals)
-  - [Background](#background)
-  - [Detailed Design](#detailed-design)
-    - [Authentication](#authentication)
-    - [Configuration](#configuration)
-    - [Roster input](#roster-input)
-    - [Reconciliation algorithm](#reconciliation-algorithm)
-    - [The membership guard](#the-membership-guard)
-    - [Run output](#run-output)
-    - [Scheduling](#scheduling)
-  - [API / Interface Changes](#api-interface-changes)
-  - [Data Model](#data-model)
-  - [Testing Strategy](#testing-strategy)
-  - [Migration / Rollout Plan](#migration-rollout-plan)
-  - [Open Questions](#open-questions)
-  - [References](#references)
-  <!--toc:end-->
-
-**Status:** Draft **Author:** Donald **Date:** 2026-07-29
+**Status:** Approved **Author:** Donald **Date:** 2026-07-29
 
 ## Overview
 
@@ -124,19 +123,20 @@ made by the enterprise owner are auto-accepted by orgs in the enterprise, so the
 manifest can evolve without chasing org-owner approvals.
 
 The CLI authenticates as the app (app ID + private key). The key is read from
-`private_key_path` in config or from the `CHAMPS_GITHUB_PRIVATE_KEY`
-environment variable (PEM contents); the env var wins, so CI workflows never
-write the secret to disk. The CLI resolves the installation per org and mints
-a per-org installation token for all API calls in that org. Each installation
-carries an independent rate-limit budget. An org in the config without a
-corresponding installation is a distinct error category surfaced in the run
-output (`no_installation`), not a crash.
+`private_key_path` in config or from the `CHAMPS_GITHUB_PRIVATE_KEY` environment
+variable (PEM contents); the env var wins, so CI workflows never write the
+secret to disk. The CLI resolves the installation per org and mints a per-org
+installation token for all API calls in that org. Each installation carries an
+independent rate-limit budget. An org in the config without a corresponding
+installation is a distinct error category surfaced in the run output
+(`no_installation`), not a crash.
 
 ### Configuration
 
-HCL, parsed with `hclkit`. The config declares which orgs are managed and the
-team settings; the roster is deliberately kept out of the config so it can be
-exported from wherever the program tracks champions.
+HCL, parsed with `hashicorp/hcl/v2` (`gohcl`) — `hclkit` exposes no public API
+yet. The config declares which orgs are managed and the team settings; the
+roster is deliberately kept out of the config so it can be exported from
+wherever the program tracks champions.
 
 ```hcl
 team {
@@ -168,16 +168,21 @@ filter narrowing which managed orgs a run touches.
 
 Logins are normalized to lowercase on both sides of every comparison. GitHub
 logins are case-insensitive but case-preserving, and roster exports will contain
-arbitrary casing; without normalization, phantom skips result.
+arbitrary casing; without normalization, phantom skips result. Parsing also
+trims whitespace, drops empty lines, and dedupes after lowercasing — CSV exports
+reliably contain all three problems.
 
 ### Reconciliation algorithm
 
 Per managed org, entirely set-based:
 
-1. List the org's full membership into a set (paginated REST or GraphQL). **Do
-   not** issue per-user membership checks — a 100-champion roster across 50 orgs
-   would be 5,000 point lookups versus a few hundred list calls, and the list
-   approach keeps installation-token rate limit consumption trivial.
+1. List the org's full membership into a set via GraphQL `membersWithRole`
+   (cursor-paginated, logins only) — some managed orgs run to thousands of
+   members against a ~100-login roster, so the query pulls just logins and
+   spends the GraphQL rate budget instead of REST's. **Do not** issue per-user
+   membership checks — a 100-champion roster across 50 orgs would be 5,000 point
+   lookups versus a few hundred list calls, and the list approach keeps
+   installation-token rate limit consumption trivial.
 2. Ensure the `security_champions` team exists (create if missing,
    `POST /orgs/{org}/teams`, using the settings from config). Settings apply
    only at creation; an existing team's settings are left untouched — v0.1.0
@@ -189,14 +194,18 @@ Per managed org, entirely set-based:
 6. With `--prune`: `removes = team_members − desired`; issue `DELETE` for each.
    Prune only touches team membership, never org membership, so it cannot revoke
    anything beyond the champion role.
-7. Everything in `roster − org_members` is logged as a skip
-   (`not_org_member`).
+7. Everything in `roster − org_members` is logged as a skip (`not_org_member`).
 8. After all orgs are processed, each roster login that appeared in zero org
    member lists gets one `GET /users/{login}`: if the login does not resolve,
    its skips are reported as `unknown_user` instead. This residue check is the
    only per-user lookup the tool makes.
 
 Reruns against unchanged state produce empty diffs and no writes.
+
+One guardrail: if the roster parses to zero logins while `--prune` is set, the
+run fails before any writes. The PR flow reviews roster changes, but the cron
+apply runs unattended — a truncated or corrupt CSV must not be able to empty
+every team in every org.
 
 ### The membership guard
 
@@ -207,8 +216,8 @@ any write is issued: the tool never calls the membership endpoint for a
 non-member. This guard is load-bearing and must be preserved in any refactor.
 
 As a backstop, every membership `PUT` response's `state` field is checked: it
-must be `active`. A `pending` state means an invitation was just sent — a
-guard bug — so the tool cancels the invitation and fails the run loudly.
+must be `active`. A `pending` state means an invitation was just sent — a guard
+bug — so the tool cancels the invitation and fails the run loudly.
 
 Related edge cases:
 
@@ -219,10 +228,38 @@ Related edge cases:
   not expected drift, and gets a distinct reason code (`unknown_user`, via the
   residue check above). It is reported, never a fatal error.
 
+### Concurrency
+
+Orgs are the unit of parallelism. Each org is fully independent — its own
+installation token, its own rate-limit budget, no shared state — so the per-org
+reconcile (steps 1–7) is a self-contained unit, fanned out across orgs with a
+bounded worker pool (`errgroup`, limit set by `--parallelism`, default 5).
+Everything _inside_ an org stays sequential: paginated list calls are inherently
+ordered, and GitHub's secondary rate limits penalize concurrent writes, so adds
+and removes issue one at a time per org.
+
+Results are collected per org and rendered only after all orgs finish, sorted
+alphabetically by org and then by user, so output is deterministic no matter how
+the scheduler interleaves the work. The membership checks themselves need no
+sorting: member and team lists load into maps, making intersection and diff O(1)
+lookups per login.
+
+Plan and apply are the same computation with different endings: compute the
+diff, then either render it (plan) or execute it and render what happened
+(apply). Apply never consumes a saved plan artifact — it recomputes against live
+GitHub state, so the membership guard is evaluated at write time. A champion who
+leaves an org between plan and apply falls out of the intersection instead of
+receiving an invitation.
+
 ### Run output
 
-All output goes through `slog` (JSON handler) to stdout — no separate log file
-or artifact. Skips are one structured record per `(user, org)` pair:
+One stream, no files or artifacts: everything goes to stdout, and the user pipes
+or redirects it Unix-style if they want a log. The rendering is a
+Terraform-style diff — adds in green, removals in red — followed by the
+end-of-run summary of per-org counts (added, removed, skipped), org-level
+errors, and run totals. `--no-color`, a set `NO_COLOR` env var, or a non-TTY
+stdout disables color, so piped and CI output is plain text by default. Skips
+are one structured `slog` record per `(user, org)` pair:
 
 ```json
 {"level":"INFO","msg":"skip","user":"jdoe","org":"org2","reason":"not_org_member"}
@@ -231,44 +268,49 @@ or artifact. Skips are one structured record per `(user, org)` pair:
 ```
 
 Reason codes: `not_org_member` (includes pending invites), `unknown_user`
-(org-independent, `org` empty), and `no_installation` (org-level, `user`
-empty).
+(org-independent, `org` empty), and `no_installation` (org-level, `user` empty).
 
-Each run ends with a Terraform-style summary: per-org counts of users added,
-removed, and skipped, plus any org-level errors, and run totals. Because the
-records are machine-readable JSON, they diff cleanly between runs — on a
-schedule this becomes a standing drift report of "champions who do not yet
-have access to org X"; when a champion gains access to a new org, the next run
-adds them automatically and the entry disappears.
+Because the skip records are machine-readable JSON, they diff cleanly between
+runs — on a schedule this becomes a standing drift report of "champions who do
+not yet have access to org X"; when a champion gains access to a new org, the
+next run adds them automatically and the entry disappears.
 
 ### Scheduling
 
 The roster CSV is version-controlled and changes only by PR: CI runs
-`champs plan` on the PR so reviewers see the exact diff (adds, removes,
-skips), and the post-merge workflow runs `champs apply`. A cron-triggered run
-of the same apply catches drift between roster changes — champions gaining or
-losing org membership. Idempotency makes all of this safe; each run's summary
-output is the program's drift view.
+`champs plan` on the PR so reviewers see the exact diff (adds, removes, skips),
+and the post-merge workflow runs `champs apply`. A cron-triggered run of the
+same apply catches drift between roster changes — champions gaining or losing
+org membership. Idempotency makes all of this safe; each run's summary output is
+the program's drift view.
 
 ## API / Interface Changes
 
+The CLI is built with cobra (the house default for Go CLIs).
+
 ```text
-champs apply  --config champs.hcl --roster champions.csv [--orgs org1,org2] [--prune] [--dry-run]
-champs plan   --config champs.hcl --roster champions.csv [--orgs ...]   # alias for apply --dry-run
+champs apply    --config champs.hcl --roster champions.csv [--orgs org1,org2] [--prune] [--dry-run] [--no-color] [--parallelism N]
+champs plan     --config champs.hcl --roster champions.csv [--orgs ...] [--no-color] [--parallelism N]   # alias for apply --dry-run
+champs version
 ```
 
 - `apply` — full reconcile as described above.
 - `plan` / `--dry-run` — print the computed adds, removes, and skips without
-  writing.
+  writing, rendered as a colorized Terraform-style diff (see Run output).
+- `version` — print `main.version`, `main.commit`, and `main.date` as injected
+  at release time via `-ldflags`.
+- `--no-color` — plain output; color is also disabled automatically when
+  `NO_COLOR` is set or stdout is not a TTY.
+- `--parallelism` — bound on concurrent org reconciles (default 5).
 
-There is no ad-hoc single-user command: a one-off change is a one-line PR to
-the roster CSV, which gets the same plan/apply treatment as any other change.
+There is no ad-hoc single-user command: a one-off change is a one-line PR to the
+roster CSV, which gets the same plan/apply treatment as any other change.
 
 Exit codes: `0` — run completed, with or without skips (skips are expected
 state, not failure); `1` — errors, whether fatal (cannot authenticate or reach
-GitHub) or per-org (an org's API calls failed). A failing org does not abort
-the run — remaining orgs still reconcile, the error lands in the summary, and
-the next idempotent run retries it.
+GitHub) or per-org (an org's API calls failed). A failing org does not abort the
+run — remaining orgs still reconcile, the error lands in the summary, and the
+next idempotent run retries it.
 
 ## Data Model
 
@@ -308,9 +350,9 @@ Statelessness is what makes the tool trivially idempotent and schedulable.
   option with the right semantics.
 - **Prune default.** Should `--prune` eventually become the default once trust
   is established, making the roster fully authoritative?
-- **Team settings drift.** v0.1.0 applies config settings only at team
-  creation and never reconciles an existing team's privacy or description.
-  Revisit if pre-existing teams with divergent settings turn out to matter.
+- **Team settings drift.** v0.1.0 applies config settings only at team creation
+  and never reconciles an existing team's privacy or description. Revisit if
+  pre-existing teams with divergent settings turn out to matter.
 
 ## References
 

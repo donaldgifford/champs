@@ -84,6 +84,17 @@ test-report:
     @go test -coverprofile={{ coverage_out }} ./...
     @go tool cover -html={{ coverage_out }}
 
+# Fail if any tested package's statement coverage is below the floor
+[group('test')]
+coverage-gate floor="80":
+    @go test -cover ./... | awk -v floor={{ floor }} '\
+        $1 == "ok" { for (i = 1; i <= NF; i++) if ($i == "coverage:") { \
+            pct = $(i + 1); gsub(/%/, "", pct); \
+            if (pct + 0 < floor) { \
+                printf "coverage gate: %s at %s%% < %s%%\n", $2, pct, floor; \
+                failed = 1 } } } \
+        END { exit failed }'
+
 # ─── Lint & format ─────────────────────────────────────────────────
 
 # Run golangci-lint
