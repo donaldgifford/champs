@@ -56,3 +56,6 @@ dist/
 
 # donald-loop runtime state
 .claude/donald-loop.local.md
+
+# PEM for testing
+.pem
