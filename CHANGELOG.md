@@ -43,6 +43,7 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 - *(config,roster)* Cover Phase 1 with table-driven suites
 - *(gh)* Fake GitHub server and full client test suite
 - *(reconcile)* Guard regression and idempotency invariants
+- Add e2e fixtures for the hoomlab test org
 
 ### Miscellaneous Tasks
 
@@ -50,4 +51,6 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 - Add coverage-gate recipe and fix codecov slug
 - Add Forgejo primary workflow, fix snapshot SBOM path
 - Pin trufflehog to v3.96.0
+- *(ignore)* Pem keys
+- *(gitignore)* *.pem
 
