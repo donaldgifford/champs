@@ -300,8 +300,13 @@ plan.
       snapshot build. (`goreleaser build --snapshot --single-target` →
       `champs version` prints the snapshot version, real commit SHA, and build
       date.)
-- [ ] Manual integration: `champs plan` (`--dry-run`) against the sandbox org;
-      review output, confirm zero writes.
+- [x] Manual integration: `champs plan` (`--dry-run`) against the sandbox org;
+      review output, confirm zero writes. (Free test org `hoomlab` with a
+      dedicated GitHub App: `plan` showed the expected add + `unknown_user`
+      skip, `apply` created the team, rerun converged to zero changes. The
+      config/roster live in `e2e/`, and CI now runs the plan live every push via
+      the `E2E Plan (hoomlab test org)` job with
+      `CHAMPS_TEST_GITHUB_PRIVATE_KEY`.)
 - [ ] Resolve OQ-2 and land `champs.hcl`, the roster CSV, and the three
       workflows (plan on roster PR, apply on merge, cron drift apply) in the
       chosen home, with `CHAMPS_GITHUB_PRIVATE_KEY` in secrets.
@@ -347,7 +352,8 @@ plan.
       member list — the load-bearing invariant test.
 - [x] Idempotency test: rerun against reconciled state issues zero writes.
 - [x] CLI tests: exit codes, `--orgs` validation, no-ANSI-when-piped.
-- [ ] Manual sandbox `--dry-run` before first production use (Phase 5).
+- [x] Manual sandbox `--dry-run` before first production use (Phase 5; live
+      against the `hoomlab` test org, now continuously exercised in CI).
 
 ## Dependencies
 
