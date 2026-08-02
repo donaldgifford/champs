@@ -96,6 +96,25 @@ jobs:
           severity: HIGH,CRITICAL
           exit-code: "1"
 
+  e2e-plan:
+    name: E2E Plan (hoomlab test org)
+    runs-on: ubuntu-latest
+    # Fork PRs cannot read repository secrets; skip instead of failing.
+    if: github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Plan against the live test org
+        run: go run ./cmd/champs plan --config e2e/champs.hcl --roster e2e/roster.csv
+        env:
+          CHAMPS_GITHUB_PRIVATE_KEY: ${{ secrets.CHAMPS_TEST_GITHUB_PRIVATE_KEY }}
+
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -124,7 +143,7 @@ jobs:
         # The archive name embeds the snapshot version, so resolve it at
         # runtime rather than hardcoding a path.
         run: |
-          echo "path=$(ls dist/champs_*_linux_amd64.tar.gz.spdx.json | head -1)" >> "$GITHUB_OUTPUT"
+          echo "path=$(find dist -maxdepth 1 -name 'champs_*_linux_amd64.tar.gz.spdx.json' | head -1)" >> "$GITHUB_OUTPUT"
 
       - name: Scan archive SBOM
         id: scan-sbom
