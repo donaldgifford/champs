@@ -53,4 +53,5 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 - Pin trufflehog to v3.96.0
 - *(ignore)* Pem keys
 - *(gitignore)* *.pem
+- Add live e2e plan job against the hoomlab test org
 
