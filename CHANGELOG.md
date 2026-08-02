@@ -31,6 +31,7 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 - Add Apache-2.0 license file
 - *(impl)* CI green on PR #1 — check off the phase 5 CI task
 - Add USAGE, DEVELOPMENT, MAINTAINERS, example config; refresh README
+- *(impl)* Check off the sandbox integration test — live hoomlab run
 
 ### Styling
 
