@@ -5,6 +5,10 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 this project adheres to [Semantic Versioning](https://semver.org/).
 ## [unreleased]
 
+### Documentation
+
+- *(impl)* Check off the v0.1.0 release task
+
 ### Miscellaneous Tasks
 
 - *(make)* Remove make and make deps
