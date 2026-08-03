@@ -1,7 +1,6 @@
 # champs — task runner
 #
-# Project automation via just. Use either the Makefile or this justfile —
-# both expose the same target set with equivalent behavior.
+# Project automation via just. `just --list` (or bare `just`) shows the menu.
 
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 

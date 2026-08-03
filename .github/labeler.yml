@@ -25,7 +25,6 @@ ci:
   - changed-files:
       - any-glob-to-any-file: .github/**
       - any-glob-to-any-file: justfile
-      - any-glob-to-any-file: Makefile
 repo:
   - changed-files:
       - any-glob-to-any-file: .codecov.yaml
