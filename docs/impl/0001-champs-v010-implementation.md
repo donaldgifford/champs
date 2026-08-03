@@ -315,7 +315,16 @@ plan.
 - [ ] Expand config to all managed orgs; enable the scheduled workflow.
 - [ ] Enable `--prune` in the scheduled apply once the roster is confirmed
       authoritative.
-- [ ] Tag `v0.1.0` via `just release`.
+- [x] Tag `v0.1.0` via `just release`. (Tagged at the PR #1 merge commit
+      `93566f5`; goreleaser published all four archives with SBOMs, signed
+      checksums, and GitHub-generated release notes. Verified by downloading
+      `champs_0.1.0_darwin_arm64.tar.gz`: checksum OK and `champs version`
+      prints
+      `champs 0.1.0 (commit: 93566f56…, built:     2026-08-02T19:27:18Z)`, so
+      ldflags injection works in a real release, not just snapshots. Caveat:
+      cliff derives version headers from tags, so the `CHANGELOG.md` inside the
+      v0.1.0 source archive still reads `[unreleased]` — the published release
+      notes are correct because `.goreleaser.yml` sets `changelog.use: github`.)
 
 #### Success Criteria
 
